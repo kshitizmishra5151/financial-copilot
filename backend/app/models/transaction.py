@@ -1,9 +1,4 @@
-from sqlalchemy import Column
-from sqlalchemy import Integer
-from sqlalchemy import String
-from sqlalchemy import Float
-from sqlalchemy import Date
-
+from sqlalchemy import Column, Integer, String, Float, ForeignKey
 from app.db.database import Base
 
 
@@ -12,14 +7,14 @@ class Transaction(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    user_id = Column(Integer)
+    user_id = Column(Integer, ForeignKey("users.id"))
 
     amount = Column(Float)
 
-    merchant = Column(String)
-
     category = Column(String)
 
-    note = Column(String)
+    merchant = Column(String, nullable=True)
 
-    date = Column(Date)
+    note = Column(String, nullable=True)
+
+    date = Column(String, nullable=True)

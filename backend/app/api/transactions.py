@@ -15,6 +15,7 @@ def create_transaction(transaction: TransactionCreate):
     db = SessionLocal()
 
     new_transaction = Transaction(
+        user_id=transaction.user_id,
         amount=transaction.amount,
         category=transaction.category
     )
@@ -27,6 +28,7 @@ def create_transaction(transaction: TransactionCreate):
 
     return {
         "id": new_transaction.id,
+        "user_id": new_transaction.user_id,
         "amount": new_transaction.amount,
         "category": new_transaction.category
     }
@@ -51,7 +53,10 @@ def get_total():
 
     transactions = db.query(Transaction).all()
 
-    total = sum(transaction.amount for transaction in transactions)
+    total = 0
+
+    for transaction in transactions:
+        total += transaction.amount
 
     db.close()
 
@@ -70,6 +75,7 @@ def get_summary():
     summary = {}
 
     for transaction in transactions:
+
         category = transaction.category
 
         if category not in summary:
