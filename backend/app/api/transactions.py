@@ -26,12 +26,7 @@ def create_transaction(transaction: TransactionCreate):
 
     db.close()
 
-    return {
-        "id": new_transaction.id,
-        "user_id": new_transaction.user_id,
-        "amount": new_transaction.amount,
-        "category": new_transaction.category
-    }
+    return new_transaction
 
 
 @router.get("/")
@@ -53,10 +48,7 @@ def get_total():
 
     transactions = db.query(Transaction).all()
 
-    total = 0
-
-    for transaction in transactions:
-        total += transaction.amount
+    total = sum(transaction.amount for transaction in transactions)
 
     db.close()
 
@@ -86,3 +78,58 @@ def get_summary():
     db.close()
 
     return summary
+
+
+@router.put("/{transaction_id}")
+def update_transaction(
+    transaction_id: int,
+    transaction: TransactionCreate
+):
+
+    db = SessionLocal()
+
+    existing_transaction = (
+        db.query(Transaction)
+        .filter(Transaction.id == transaction_id)
+        .first()
+    )
+
+    if not existing_transaction:
+        db.close()
+        return {"error": "Transaction not found"}
+
+    existing_transaction.user_id = transaction.user_id
+    existing_transaction.amount = transaction.amount
+    existing_transaction.category = transaction.category
+
+    db.commit()
+    db.refresh(existing_transaction)
+
+    db.close()
+
+    return existing_transaction
+
+
+@router.delete("/{transaction_id}")
+def delete_transaction(transaction_id: int):
+
+    db = SessionLocal()
+
+    transaction = (
+        db.query(Transaction)
+        .filter(Transaction.id == transaction_id)
+        .first()
+    )
+
+    if not transaction:
+        db.close()
+        return {"error": "Transaction not found"}
+
+    db.delete(transaction)
+    db.commit()
+
+    db.close()
+
+    return {
+        "message": "Transaction deleted successfully"
+    }

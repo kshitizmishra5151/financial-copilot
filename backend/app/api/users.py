@@ -1,12 +1,14 @@
 from fastapi import APIRouter
 from app.schemas.user import UserCreate
 from app.models.user import User
+from app.models.transaction import Transaction
 from app.db.database import SessionLocal
 
 router = APIRouter(
     prefix="/users",
     tags=["Users"]
 )
+
 
 @router.post("/")
 def create_user(user: UserCreate):
@@ -29,3 +31,19 @@ def create_user(user: UserCreate):
         "name": new_user.name,
         "email": new_user.email
     }
+
+
+@router.get("/{user_id}/transactions")
+def get_user_transactions(user_id: int):
+
+    db = SessionLocal()
+
+    transactions = (
+        db.query(Transaction)
+        .filter(Transaction.user_id == user_id)
+        .all()
+    )
+
+    db.close()
+
+    return transactions
