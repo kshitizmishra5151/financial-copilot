@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.db.database import SessionLocal
 from app.models.transaction import Transaction
 from app.schemas.copilot import CopilotQuestion
+from app.services.ai_service import ask_ai
 
 router = APIRouter(
     prefix="/copilot",
@@ -23,28 +24,44 @@ def get_insights():
             "insight": "No transactions found."
         }
 
-    total_spent = sum(t.amount for t in transactions)
+    income = 0
+    expenses = 0
 
     category_totals = {}
 
     for transaction in transactions:
+
+        if transaction.category.lower() == "salary":
+            income += transaction.amount
+        else:
+            expenses += transaction.amount
 
         if transaction.category not in category_totals:
             category_totals[transaction.category] = 0
 
         category_totals[transaction.category] += transaction.amount
 
-    top_category = max(
-        category_totals,
-        key=category_totals.get
+    expense_categories = {
+        k: v
+        for k, v in category_totals.items()
+        if k.lower() != "salary"
+    }
+
+    top_category = (
+        max(expense_categories, key=expense_categories.get)
+        if expense_categories else "None"
     )
 
-    top_amount = category_totals[top_category]
+    top_amount = (
+        expense_categories[top_category]
+        if expense_categories else 0
+    )
 
     insight = (
-        f"Your total spending is ₹{total_spent}. "
-        f"Your highest spending category is {top_category} "
-        f"with ₹{top_amount}."
+        f"Income: ₹{income}, "
+        f"Expenses: ₹{expenses}, "
+        f"Savings: ₹{income - expenses}. "
+        f"Highest expense category: {top_category} (₹{top_amount})."
     )
 
     db.close()
@@ -61,47 +78,44 @@ def ask_copilot(request: CopilotQuestion):
 
     transactions = db.query(Transaction).all()
 
+    if not transactions:
+        db.close()
+        return {
+            "answer": "No transactions found."
+        }
+
+    income = 0
+    expenses = 0
+
     category_totals = {}
 
     for transaction in transactions:
+
+        if transaction.category.lower() == "salary":
+            income += transaction.amount
+        else:
+            expenses += transaction.amount
 
         if transaction.category not in category_totals:
             category_totals[transaction.category] = 0
 
         category_totals[transaction.category] += transaction.amount
 
-    question = request.question.lower()
+    transaction_summary = f"""
+Total Income: ₹{income}
+Total Expenses: ₹{expenses}
+Savings: ₹{income - expenses}
 
-    if "biggest" in question or "highest" in question:
+Category Breakdown:
+"""
 
-        top_category = max(
-            category_totals,
-            key=category_totals.get
-        )
+    for category, amount in category_totals.items():
+        transaction_summary += f"{category}: ₹{amount}\n"
 
-        answer = (
-            f"Your biggest expense category is "
-            f"{top_category} with ₹{category_totals[top_category]}."
-        )
-
-    elif "food" in question:
-
-        amount = category_totals.get("Food", 0)
-
-        answer = f"You spent ₹{amount} on Food."
-
-    elif "total" in question:
-
-        total = sum(category_totals.values())
-
-        answer = f"Your total spending is ₹{total}."
-
-    else:
-
-        answer = (
-            "I can currently answer questions about "
-            "total spending, food spending, and biggest expenses."
-        )
+    answer = ask_ai(
+        request.question,
+        transaction_summary
+    )
 
     db.close()
 
