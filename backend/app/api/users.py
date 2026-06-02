@@ -1,8 +1,10 @@
 from fastapi import APIRouter
+
 from app.schemas.user import UserCreate
 from app.models.user import User
 from app.models.transaction import Transaction
 from app.db.database import SessionLocal
+from app.services.auth_service import hash_password
 
 router = APIRouter(
     prefix="/users",
@@ -17,7 +19,8 @@ def create_user(user: UserCreate):
 
     new_user = User(
         name=user.name,
-        email=user.email
+        email=user.email,
+        password=hash_password(user.password)
     )
 
     db.add(new_user)
